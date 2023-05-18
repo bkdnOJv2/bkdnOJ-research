@@ -1,2 +1,1 @@
-# kdnOJ-research
-Classification and recommendation of competitive programming problems
+# Classification and recommendation of competitive programming problems
