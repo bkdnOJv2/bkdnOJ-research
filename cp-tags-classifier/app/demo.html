@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>DEMO | Tag Prediction</title>
+  </head>
+  <style>
+    ol, li {
+      font-size: larger;
+    }
+    code {
+      background-color: #ff8484;
+      border-radius: 5px;
+      padding: 2px 4px;
+    }
+  </style>
+  <body>
+    <h1>Tag Prediction Demo</h1>
+    <h2>Code</h2>
+    <form id="uploadform" action="/predict" method="post">
+      <textarea id="code" name="text" rows="30" cols="200"></textarea>
+      <br><br>
+      <input type="submit" value="Submit">
+    </form>
+
+    <hr/>
+    <h2>Result</h2>
+    <div id="resultdiv">
+      <div id="tags"></div>
+      <span id="error"></span>
+    </div>
+
+  </body>
+  <script>
+    var predResult = null;
+    const resultTxt = document.getElementById("result");
+
+    const codeElement = (txt) => {
+      let doc = document.createElement("code")
+      doc.textContent = txt
+      return doc
+    }
+
+    uploadform.onsubmit = async (e) => {
+      document.getElementById("tags").innerHTML = 'Loading...'
+
+      e.preventDefault();
+      const code = document.getElementById("code");
+
+      let res = await fetch("/predict", {
+        method: "POST",
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({text: code.value}),
+      });
+
+      if (res.ok) {
+        var tree = document.createDocumentFragment();
+        var ol = document.createElement("ol");
+
+        let result = await res.json();
+        const tags = result
+        for (var key in tags) {
+          var li = document.createElement("li")
+          li.appendChild(codeElement(key));
+          li.appendChild(document.createTextNode(`: ${tags[key]}`))
+          ol.appendChild(li);
+        }
+        tree.appendChild(ol);
+        document.getElementById("tags").innerHTML = ''
+        document.getElementById("tags").appendChild(tree);
+      } else {
+        document.getElementById("tags").innerHTML = ''
+        const errTxt = document.getElementById("error");
+        errTxt.textContent = "internal error: " + res
+        console.log(res)
+      };
+    };
+  </script>
+</html>

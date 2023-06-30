@@ -1,19 +1,32 @@
-from fastapi import FastAPI
-from pydantic import BaseModel
+from fastapi import FastAPI, Request
+from fastapi.templating import Jinja2Templates
+from fastapi.responses import HTMLResponse
+
 from tree_sitter import Language, Parser
 from astminer import extract_tokens, extract_ast_path2, extract_ast_path
 import tensorflow as tf
-import pickle
 from attention import Attention
 
-app = FastAPI()
+from pydantic import BaseModel
+import uvicorn
+import pickle
+import os
 
-from_disk = pickle.load(open('./model/tv_layer.pkl', "rb"))
-encoder = tf.keras.layers.TextVectorization.from_config(from_disk['config'])
-encoder.set_weights(from_disk['weights'])
-model = tf.keras.models.load_model('./model/model.h5', custom_objects={
-    'Attention': Attention
-})
+app = FastAPI()
+templates = Jinja2Templates(directory=".")
+
+
+@app.get("/demo", response_class=HTMLResponse)
+async def get_form(request: Request):
+    return templates.TemplateResponse("demo.html", {"request": request})
+
+
+from_disk = pickle.load(open("./model/tv_layer.pkl", "rb"))
+encoder = tf.keras.layers.TextVectorization.from_config(from_disk["config"])
+encoder.set_weights(from_disk["weights"])
+model = tf.keras.models.load_model(
+    "./model/model.h5", custom_objects={"Attention": Attention}
+)
 inputs = tf.keras.Input(shape=(1,), dtype="string")
 indices = encoder(inputs)
 outputs = model(indices)
@@ -23,8 +36,10 @@ end_to_end_model = tf.keras.Model(inputs, outputs)
 class SourceCodeIn(BaseModel):
     text: str
 
+
 class TokenOut(BaseModel):
     tokens: list
+
 
 class TagOut(BaseModel):
     data_structure: float
@@ -34,9 +49,10 @@ class TagOut(BaseModel):
     geometry: float
 
 
-CPP_LANGUAGE = Language('./model/tree-sitter-cpp-language.so', 'cpp')
+CPP_LANGUAGE = Language("./model/tree-sitter-cpp-language.so", "cpp")
 PARSER = Parser()
 PARSER.set_language(CPP_LANGUAGE)
+
 
 @app.get("/")
 def home():
@@ -48,16 +64,17 @@ def tokenize(payload: SourceCodeIn):
     tokens = extract_tokens(PARSER, payload.text)
     return {"tokens": tokens}
 
+
 @app.post("/ast-path", response_model=TokenOut)
 def tokenize(payload: SourceCodeIn):
     tokens = extract_ast_path2(PARSER, payload.text)
     return {"tokens": tokens}
 
+
 @app.post("/predict", response_model=TagOut)
 def tokenize(payload: SourceCodeIn):
     src = payload.text
-    res = list(end_to_end_model.predict([' '.join(extract_ast_path(PARSER, src))]))[0]
-    print(res)
+    res = list(end_to_end_model.predict([" ".join(extract_ast_path(PARSER, src))]))[0]
     res = list(res)
 
     return {
@@ -65,5 +82,8 @@ def tokenize(payload: SourceCodeIn):
         "graph": res[1],
         "math": res[2],
         "string": res[3],
-        "geometry": res[4]
+        "geometry": res[4],
     }
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv('HTTP_PORT') or 8001))
