@@ -35,7 +35,7 @@ def extract_ast_path(parser: Parser, src: str, max_length=8):
     all_path = []
     cur_path = []
 
-    with open('/home/oem/Workspace/DATN/cp-tags-classifier/app/model/vocab.json', 'r') as f:
+    with open('./model/vocab.json', 'r') as f:
         vocab_node = json.load(f)
 
     def dfs(node):
