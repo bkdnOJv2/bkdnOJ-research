@@ -6,7 +6,7 @@ from tree_sitter import Language, Parser
 from astminer import extract_tokens, extract_ast_path2, extract_ast_path
 import tensorflow as tf
 from attention import Attention
-
+from custom import CustomCrossEntropy
 from pydantic import BaseModel
 import uvicorn
 import pickle
@@ -21,11 +21,11 @@ async def get_form(request: Request):
     return templates.TemplateResponse("demo.html", {"request": request})
 
 
-from_disk = pickle.load(open("./model/tv_layer.pkl", "rb"))
+from_disk = pickle.load(open("./model/vectorize_token.pkl", "rb"))
 encoder = tf.keras.layers.TextVectorization.from_config(from_disk["config"])
 encoder.set_weights(from_disk["weights"])
 model = tf.keras.models.load_model(
-    "./model/model.h5", custom_objects={"Attention": Attention}
+    "./model/tok.h5", custom_objects={"CustomCrossEntropy": CustomCrossEntropy}
 )
 inputs = tf.keras.Input(shape=(1,), dtype="string")
 indices = encoder(inputs)
@@ -74,7 +74,7 @@ def tokenize(payload: SourceCodeIn):
 @app.post("/predict", response_model=TagOut)
 def tokenize(payload: SourceCodeIn):
     src = payload.text
-    res = list(end_to_end_model.predict([" ".join(extract_ast_path(PARSER, src))]))[0]
+    res = list(end_to_end_model.predict([" ".join(extract_tokens(PARSER, src))]))[0]
     res = list(res)
 
     return {
